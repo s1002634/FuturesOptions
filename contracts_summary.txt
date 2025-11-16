@@ -1,0 +1,182 @@
+===========================================
+永豐金證券 Shioaji API - 商品檔總結
+===========================================
+
+執行日期: 2025-11-14
+
+===========================================
+1. 期貨合約 (Futures)
+===========================================
+
+總類型數: 377 種
+總合約數: 約 2,639 個合約
+
+主要期貨類型:
+-----------
+TXF - 台指期貨 (Taiwan Stock Index Futures)
+  - TXFR1 (最近月), TXFR2 (次近月)
+  - 8 個合約
+
+MXF - 小台指期貨 (Mini Taiwan Stock Index Futures)
+  - MXFR1 (最近月), MXFR2 (次近月)
+  - 8 個合約
+
+TGF - 電子期貨 (Electronic Sector Index Futures)
+  - TGFR1 (最近月), TGFR2 (次近月)
+  - 8 個合約
+
+TJF - 金融期貨 (Finance Sector Index Futures)
+  - TJFR1 (最近月), TJFR2 (次近月)
+  - 7 個合約
+
+TMF - 櫃買期貨 (OTC Index Futures)
+  - TMFR1 (最近月), TMFR2 (次近月)
+  - 8 個合約
+
+TWN - 台幣匯率期貨 (TWD Exchange Rate Futures)
+  - 16 個合約
+
+其他類型包括:
+BRF, BTF, CAF, CBF, CCF, CDF, CE1, CEF, CFF, CGF, CHF, CJF, CKF, CLF...
+(完整列表請見 all_futures_contracts.json)
+
+輸出檔案:
+---------
+- all_futures_contracts.json      (所有期貨合約完整列表)
+- futures_r_contracts.json        (只包含 R1/R2 最近月合約 - 推薦使用)
+
+===========================================
+2. 選擇權合約 (Options)
+===========================================
+
+總類型數: 56 種
+總合約數: 6,997 個
+
+主要選擇權類型:
+--------------
+TXO - 台指選擇權 (Taiwan Stock Index Options)
+  - 1,104 個合約
+  - 包含各種履約價的 Call 和 Put
+
+TEO - 電子選擇權 (Electronic Sector Index Options)
+  - 556 個合約
+
+TFO - 金融選擇權 (Finance Sector Index Options)
+  - 190 個合約
+
+個股選擇權:
+----------
+CDO - 台積電選擇權 (72 個合約)
+DHO - 鴻海選擇權 (124 個合約)
+DVO - 聯發科選擇權 (74 個合約)
+IJO - 大立光選擇權 (104 個合約)
+CAO - 南亞選擇權 (130 個合約)
+CBO - 中鋼選擇權 (84 個合約)
+CCO - 聯電選擇權 (90 個合約)
+... (還有更多個股選擇權)
+
+ETF 選擇權:
+----------
+NYO - 元大台灣50ETF選擇權 (70 個合約)
+OAO - 富邦上証ETF選擇權 (88 個合約)
+OBO - 元大上證50ETF選擇權 (80 個合約)
+... (還有更多 ETF 選擇權)
+
+輸出檔案:
+---------
+- all_options_contracts.json      (所有選擇權合約完整列表)
+- all_options_detail.json         (包含合約詳細資訊)
+
+===========================================
+3. 股票 (Stocks)
+===========================================
+
+總數: 約 3 檔 (在模擬環境中)
+註: 實際環境中會有更多股票
+
+熱門股票範例:
+- 2330: 台積電 (TSMC)
+- 2317: 鴻海
+- 2454: 聯發科
+- 2308: 台達電
+- 2303: 聯電
+
+輸出檔案:
+---------
+- all_contracts_complete.json     (包含期貨、選擇權、股票的完整資訊)
+
+===========================================
+4. 使用建議
+===========================================
+
+訂閱期貨合約 (推薦使用 R1/R2):
+------------------------------
+api.quote.subscribe(
+    api.Contracts.Futures.TXF['TXFR1'],  # 台指期貨最近月
+    quote_type=sj.constant.QuoteType.Tick,
+    version=sj.constant.QuoteVersion.v1
+)
+
+訂閱選擇權合約:
+--------------
+api.quote.subscribe(
+    api.Contracts.Options.TXO['TXO31200C6'],  # 台指選擇權
+    quote_type=sj.constant.QuoteType.Tick,
+    version=sj.constant.QuoteVersion.v1
+)
+
+訂閱股票:
+--------
+api.quote.subscribe(
+    api.Contracts.Stocks['2330'],  # 台積電
+    quote_type=sj.constant.QuoteType.Tick,
+    version=sj.constant.QuoteVersion.v1
+)
+
+===========================================
+5. 合約代碼格式說明
+===========================================
+
+期貨合約:
+- TXFR1: R1 表示最近月份合約（自動滾動）
+- TXFR2: R2 表示次近月份合約
+- TXF202511: 指定 2025年11月的合約
+
+選擇權合約:
+- TXO31200C6: 履約價 31200 的 Call，3月到期
+- TXO28900W5: 履約價 28900 的 Put，11月到期 (W=11月)
+- CDO12000K5: 台積電履約價 1200 的 Call，11月到期
+
+月份代碼:
+A=1月, B=2月, C=3月, D=4月, E=5月, F=6月
+G=7月, H=8月, I=9月, J=10月, K=11月, L=12月
+(Call 用前12個字母，Put 用後12個字母)
+
+===========================================
+6. 檔案列表
+===========================================
+
+生成的 JSON 檔案:
+1. all_futures_contracts.json     - 所有期貨合約
+2. futures_r_contracts.json       - 期貨 R1/R2 合約（推薦）
+3. all_options_contracts.json     - 所有選擇權合約
+4. all_options_detail.json        - 選擇權詳細資訊
+5. all_contracts_complete.json    - 完整合約資訊
+
+Python 腳本:
+1. get_all_contracts.py           - 獲取期貨合約
+2. get_complete_contracts.py      - 獲取完整合約資訊
+3. get_all_options.py             - 獲取選擇權合約
+4. config.py                      - 即時報價訂閱範例
+
+===========================================
+注意事項
+===========================================
+
+1. 合約會定期到期，建議使用 R1/R2 自動滾動合約
+2. 模擬環境的合約可能與正式環境有差異
+3. 訂閱前請確認合約代碼是否存在
+4. 超過交易時間可能無法獲取即時報價
+5. 選擇權合約數量龐大，建議只訂閱需要的合約
+
+===========================================
