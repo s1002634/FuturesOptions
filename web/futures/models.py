@@ -1,37 +1,31 @@
 from django.db import models
 
 
-class Exchange(models.TextChoices):
-    OES = 'OES', 'OES'
-    OTC = 'OTC', 'OTC'
-    TSE = 'TSE', 'TSE'
-
-
-class DayTrade(models.TextChoices):
-    YES = 'Yes', 'Yes'
-    NO = 'No', 'No'
-    ONLY_BUY = 'OnlyBuy', 'Only Buy'
-
-
 class Contract(models.Model):
-    exchange = models.CharField(max_length=10, choices=Exchange.choices)
-    code = models.CharField(max_length=50)
-    symbol = models.CharField(max_length=50)
-    name = models.CharField(max_length=100)
-    category = models.CharField(max_length=50)
-    unit = models.IntegerField()
-    limit_up = models.FloatField()
-    limit_down = models.FloatField()
-    reference = models.FloatField()
-    update_date = models.CharField(max_length=20)
-    margin_trading_balance = models.IntegerField()
-    short_selling_balance = models.IntegerField()
-    day_trade = models.CharField(max_length=10, choices=DayTrade.choices)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    code = models.CharField(max_length=50, help_text="商品代碼")
+    datetime = models.DateTimeField(help_text="日期")
+    open = models.DecimalField(max_digits=20, decimal_places=4, help_text="開盤價")
+    underlying_price = models.DecimalField(max_digits=20, decimal_places=4, help_text="標的物價格")
+    bid_side_total_vol = models.IntegerField(help_text="買盤成交總量 (lot)")
+    ask_side_total_vol = models.IntegerField(help_text="賣盤成交總量 (lot)")
+    avg_price = models.DecimalField(max_digits=20, decimal_places=4, help_text="均價")
+    close = models.DecimalField(max_digits=20, decimal_places=4, help_text="成交價")
+    high = models.DecimalField(max_digits=20, decimal_places=4, help_text="最高價(自開盤)")
+    low = models.DecimalField(max_digits=20, decimal_places=4, help_text="最低價(自開盤)")
+    amount = models.DecimalField(max_digits=20, decimal_places=4, help_text="成交額 (NTD)")
+    total_amount = models.DecimalField(max_digits=20, decimal_places=4, help_text="總成交額 (NTD)")
+    volume = models.IntegerField(help_text="成交量 (lot)")
+    total_volume = models.IntegerField(help_text="總成交量 (lot)")
+    tick_type = models.IntegerField(help_text="內外盤別 {1: 外盤, 2: 內盤, 0: 無法判定}")
+    chg_type = models.IntegerField(help_text="漲跌註記 {1: 漲停, 2: 漲, 3: 平盤, 4: 跌, 5: 跌停}")
+    price_chg = models.DecimalField(max_digits=20, decimal_places=4, help_text="漲跌")
+    pct_chg = models.DecimalField(max_digits=20, decimal_places=4, help_text="漲跌幅 (%)")
+    simtrade = models.IntegerField(help_text="試撮")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="建立時間")
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新時間")
 
     def __str__(self):
-        return f"{self.symbol} - {self.name}"
+        return f"{self.code} - {self.datetime}"
 
     class Meta:
         db_table = 'contract'
