@@ -6,7 +6,10 @@
       "Bash(.venvScriptsactivate)",
       "Bash(venv/Scripts/activate)",
       "Bash(venv\\Scripts\\python.exe -m pip:*)",
-      "Bash(./venv/Scripts/python.exe:*)"
+      "Bash(./venv/Scripts/python.exe:*)",
+      "Bash(mkdir:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []
