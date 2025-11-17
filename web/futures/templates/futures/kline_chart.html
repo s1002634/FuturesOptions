@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K線圖表</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        select, input {
+            padding: 8px 15px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input:focus {
+            border-color: #764ba2;
+        }
+
+        button {
+            padding: 8px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 600px;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .last-update {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .auto-refresh input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📈 期貨 K 線圖表</h1>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="contractSelect">選擇合約:</label>
+                <select id="contractSelect">
+                    <option value="">載入中...</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="timeRange">時間範圍:</label>
+                <select id="timeRange">
+                    <option value="60">最近 1 小時</option>
+                    <option value="180">最近 3 小時</option>
+                    <option value="360">最近 6 小時</option>
+                    <option value="720">最近 12 小時</option>
+                    <option value="1440">最近 24 小時</option>
+                </select>
+            </div>
+
+            <div class="control-group auto-refresh">
+                <input type="checkbox" id="autoRefresh" checked>
+                <label for="autoRefresh">自動更新 (每分鐘)</label>
+            </div>
+
+            <button onclick="refreshChart()">🔄 立即更新</button>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <h3>資料筆數</h3>
+                <div class="value" id="dataCount">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>最新價格</h3>
+                <div class="value" id="latestPrice">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>最高價</h3>
+                <div class="value" id="highestPrice">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>最低價</h3>
+                <div class="value" id="lowestPrice">-</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="klineChart"></canvas>
+            </div>
+        </div>
+
+        <div class="last-update">
+            最後更新: <span id="lastUpdate">-</span>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+        let autoRefreshInterval = null;
+
+        // 初始化圖表
+        function initChart() {
+            const ctx = document.getElementById('klineChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '收盤價',
+                        data: [],
+                        borderColor: 'rgb(102, 126, 234)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += context.parsed.y.toFixed(2);
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                displayFormats: {
+                                    minute: 'HH:mm'
+                                },
+                                tooltipFormat: 'yyyy-MM-dd HH:mm'
+                            },
+                            title: {
+                                display: true,
+                                text: '時間'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '價格'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // 載入合約列表
+        async function loadContracts() {
+            try {
+                const response = await fetch('/api/k-contracts/');
+                const data = await response.json();
+
+                // 取得所有唯一的 code
+                const codes = [...new Set(data.map(item => item.code))];
+
+                const select = document.getElementById('contractSelect');
+                select.innerHTML = codes.map(code =>
+                    `<option value="${code}">${code}</option>`
+                ).join('');
+
+                if (codes.length > 0) {
+                    loadChartData(codes[0]);
+                }
+            } catch (error) {
+                console.error('載入合約列表失敗:', error);
+            }
+        }
+
+        // 載入圖表資料
+        async function loadChartData(code) {
+            if (!code) return;
+
+            const timeRange = document.getElementById('timeRange').value;
+
+            try {
+                const response = await fetch(`/api/k-contracts/?code=${code}`);
+                const data = await response.json();
+
+                // 只取最近的資料
+                const filteredData = data.slice(0, parseInt(timeRange)).reverse();
+
+                // 更新圖表
+                chart.data.labels = filteredData.map(item => new Date(item.datetime));
+                chart.data.datasets[0].data = filteredData.map(item => parseFloat(item.close));
+                chart.data.datasets[0].label = `${code} - 收盤價`;
+                chart.update();
+
+                // 更新統計資訊
+                updateStats(filteredData);
+
+                // 更新最後更新時間
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-TW');
+            } catch (error) {
+                console.error('載入圖表資料失敗:', error);
+            }
+        }
+
+        // 更新統計資訊
+        function updateStats(data) {
+            if (data.length === 0) return;
+
+            const prices = data.map(item => parseFloat(item.close));
+            const latest = prices[prices.length - 1];
+            const highest = Math.max(...prices);
+            const lowest = Math.min(...prices);
+
+            document.getElementById('dataCount').textContent = data.length;
+            document.getElementById('latestPrice').textContent = latest.toFixed(2);
+            document.getElementById('highestPrice').textContent = highest.toFixed(2);
+            document.getElementById('lowestPrice').textContent = lowest.toFixed(2);
+        }
+
+        // 刷新圖表
+        function refreshChart() {
+            const code = document.getElementById('contractSelect').value;
+            loadChartData(code);
+        }
+
+        // 設定自動更新 - 每分鐘的第3秒更新
+        function setupAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+
+            function scheduleNextUpdate() {
+                const now = new Date();
+                const seconds = now.getSeconds();
+
+                // 計算到下一分鐘第3秒的時間
+                let delay;
+                if (seconds < 3) {
+                    // 如果當前秒數小於3,等待到本分鐘的第3秒
+                    delay = (3 - seconds) * 1000;
+                } else {
+                    // 如果當前秒數大於等於3,等待到下一分鐘的第3秒
+                    delay = (60 - seconds + 3) * 1000;
+                }
+
+                if (autoRefreshInterval) {
+                    clearTimeout(autoRefreshInterval);
+                }
+
+                autoRefreshInterval = setTimeout(function() {
+                    if (checkbox.checked) {
+                        refreshChart();
+                        // 每60秒更新一次
+                        autoRefreshInterval = setInterval(refreshChart, 60000);
+                    }
+                }, delay);
+            }
+
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    scheduleNextUpdate();
+                } else {
+                    if (autoRefreshInterval) {
+                        clearTimeout(autoRefreshInterval);
+                        clearInterval(autoRefreshInterval);
+                        autoRefreshInterval = null;
+                    }
+                }
+            });
+
+            // 預設啟動自動更新
+            if (checkbox.checked) {
+                scheduleNextUpdate();
+            }
+        }
+
+        // 監聽合約切換
+        document.getElementById('contractSelect').addEventListener('change', function() {
+            loadChartData(this.value);
+        });
+
+        // 監聽時間範圍切換
+        document.getElementById('timeRange').addEventListener('change', function() {
+            const code = document.getElementById('contractSelect').value;
+            loadChartData(code);
+        });
+
+        // 初始化
+        window.onload = function() {
+            initChart();
+            loadContracts();
+            setupAutoRefresh();
+        };
+    </script>
+</body>
+</html>

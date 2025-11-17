@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期貨即時報價</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .contract-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .contract-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .contract-code {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .price-display {
+            text-align: right;
+        }
+
+        .current-price {
+            font-size: 3em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .price-change {
+            font-size: 1.2em;
+            margin-top: 5px;
+        }
+
+        .price-up {
+            color: #e74c3c;
+        }
+
+        .price-down {
+            color: #27ae60;
+        }
+
+        .price-neutral {
+            color: #95a5a6;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .data-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .data-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .data-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .last-update {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: white;
+            font-size: 1.1em;
+        }
+
+        .exchange-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #3498db;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 期貨即時報價看板</h1>
+
+        <div class="stats">
+            <div class="stat-card">
+                <h3>總成交量</h3>
+                <div class="value" id="totalVolume">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>最高價</h3>
+                <div class="value" id="highPrice">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>最低價</h3>
+                <div class="value" id="lowPrice">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>漲跌幅</h3>
+                <div class="value" id="pctChange">-</div>
+            </div>
+        </div>
+
+        <div id="contractsContainer">
+            <div class="loading">正在載入資料...</div>
+        </div>
+
+        <div class="last-update">
+            最後更新: <span id="lastUpdate">-</span>
+        </div>
+    </div>
+
+    <script>
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '-';
+            return parseFloat(num).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-TW');
+        }
+
+        function getPriceChangeClass(chgType) {
+            // 1: 漲停, 2: 漲, 3: 平盤, 4: 跌, 5: 跌停
+            if (chgType === 1 || chgType === 2) return 'price-up';
+            if (chgType === 4 || chgType === 5) return 'price-down';
+            return 'price-neutral';
+        }
+
+        function getTickTypeText(tickType) {
+            // 1: 外盤, 2: 內盤, 0: 無法判定
+            const types = { 1: '外盤', 2: '內盤', 0: '平盤' };
+            return types[tickType] || '-';
+        }
+
+        function getChgTypeText(chgType) {
+            // 1: 漲停, 2: 漲, 3: 平盤, 4: 跌, 5: 跌停
+            const types = { 1: '漲停', 2: '漲', 3: '平盤', 4: '跌', 5: '跌停' };
+            return types[chgType] || '-';
+        }
+
+        function renderContracts(contracts) {
+            const container = document.getElementById('contractsContainer');
+
+            if (!contracts || contracts.length === 0) {
+                container.innerHTML = '<div class="contract-card"><div class="no-data">目前無資料</div></div>';
+                return;
+            }
+
+            let html = '';
+            contracts.forEach(contract => {
+                const priceChangeClass = getPriceChangeClass(contract.chg_type);
+                const priceSign = contract.price_chg >= 0 ? '+' : '';
+
+                html += `
+                    <div class="contract-card">
+                        <div class="contract-header">
+                            <div>
+                                <span class="contract-code">${contract.code}</span>
+                                <span class="exchange-badge">${contract.exchange}</span>
+                            </div>
+                            <div class="price-display">
+                                <div class="current-price ${priceChangeClass}">${formatNumber(contract.close)}</div>
+                                <div class="price-change ${priceChangeClass}">
+                                    ${priceSign}${formatNumber(contract.price_chg)} (${priceSign}${formatNumber(contract.pct_chg)}%)
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <div class="data-label">開盤價</div>
+                                <div class="data-value">${formatNumber(contract.open)}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">最高價</div>
+                                <div class="data-value">${formatNumber(contract.high)}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">最低價</div>
+                                <div class="data-value">${formatNumber(contract.low)}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">標的物價格</div>
+                                <div class="data-value">${formatNumber(contract.underlying_price)}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">成交量</div>
+                                <div class="data-value">${contract.volume.toLocaleString()}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">總成交量</div>
+                                <div class="data-value">${contract.total_volume.toLocaleString()}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">買盤總量</div>
+                                <div class="data-value">${contract.bid_side_total_vol.toLocaleString()}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">賣盤總量</div>
+                                <div class="data-value">${contract.ask_side_total_vol.toLocaleString()}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">平均價</div>
+                                <div class="data-value">${formatNumber(contract.avg_price)}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">成交金額</div>
+                                <div class="data-value">${formatNumber(contract.amount)}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">總成交金額</div>
+                                <div class="data-value">${formatNumber(contract.total_amount)}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">內外盤別</div>
+                                <div class="data-value">${getTickTypeText(contract.tick_type)}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">漲跌註記</div>
+                                <div class="data-value">${getChgTypeText(contract.chg_type)}</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-label">更新時間</div>
+                                <div class="data-value" style="font-size: 0.9em;">${formatDateTime(contract.datetime)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // Update stats
+            if (contracts.length > 0) {
+                const latest = contracts[0];
+                document.getElementById('totalVolume').textContent = latest.total_volume.toLocaleString();
+                document.getElementById('highPrice').textContent = formatNumber(latest.high);
+                document.getElementById('lowPrice').textContent = formatNumber(latest.low);
+                document.getElementById('pctChange').textContent = formatNumber(latest.pct_chg) + '%';
+                document.getElementById('pctChange').className = 'value ' + getPriceChangeClass(latest.chg_type);
+            }
+        }
+
+        function fetchContracts() {
+            fetch('/api/contracts/')
+                .then(response => response.json())
+                .then(data => {
+                    renderContracts(data);
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-TW');
+                })
+                .catch(error => {
+                    console.error('Error fetching contracts:', error);
+                });
+        }
+
+        // Initial fetch
+        fetchContracts();
+
+        // Auto refresh every 1 second
+        setInterval(fetchContracts, 1000);
+    </script>
+</body>
+</html>
