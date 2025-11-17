@@ -2,6 +2,7 @@ from django.db import models
 
 
 class Contract(models.Model):
+    exchange = models.CharField(max_length=20, help_text="交易所", default="TAIFEX")
     code = models.CharField(max_length=50, help_text="商品代碼")
     datetime = models.DateTimeField(help_text="日期")
     open = models.DecimalField(max_digits=20, decimal_places=4, help_text="開盤價")
@@ -33,6 +34,7 @@ class Contract(models.Model):
 
 class KContract(models.Model):
     """K線資料 - 每分鐘記錄一次"""
+    exchange = models.CharField(max_length=20, help_text="交易所", default="TAIFEX")
     code = models.CharField(max_length=50, help_text="商品代碼")
     datetime = models.DateTimeField(help_text="日期", db_index=True)
     open = models.DecimalField(max_digits=20, decimal_places=4, help_text="開盤價")

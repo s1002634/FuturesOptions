@@ -24,69 +24,41 @@ api.activate_ca(
 print("Login and activate CA success")
 
 
-def get_contract_data(code):
-    """從 API 取得 Contract 的最新資料"""
+def record_k_line_bulk_snapshot(minute_time):
+    """
+    批次記錄 K 線快照 - 一次 API 呼叫處理所有合約
+    從資料庫的所有 Contract 取得最新資料並批次建立 KContract
+    """
     try:
-        response = requests.get(
-            f"http://127.0.0.1:8111/api/contracts/{code}/",
-            timeout=5
+        # 記錄開始時間
+        start_time = time.time()
+
+        # 呼叫批次快照 API
+        response = requests.post(
+            "http://127.0.0.1:8111/api/k-contracts/bulk-snapshot/",
+            json={"datetime": minute_time + ":00"},
+            timeout=10  # 批次操作可能需要較長時間
         )
-        if response.status_code == 200:
-            return response.json()
-        return None
+
+        # 計算耗時
+        elapsed_time = (time.time() - start_time) * 1000  # 轉換為毫秒
+
+        if response.status_code in [200, 201]:
+            result = response.json()
+            print(f"[K線批次] 記錄成功 | 時間: {minute_time}")
+            print(f"  ✓ 建立筆數: {result.get('created_count')}/{result.get('total_contracts')}")
+            print(f"  ✓ API 耗時: {result.get('elapsed_ms', 0):.2f}ms")
+            print(f"  ✓ 總耗時: {elapsed_time:.2f}ms")
+        else:
+            print(f"[K線批次] 記錄失敗 | 錯誤: {response.text}")
+            print(f"  ✗ HTTP 狀態碼: {response.status_code}")
+
     except requests.exceptions.RequestException as e:
-        print(f"[K線] 取得 {code} 資料失敗: {e}")
-        return None
-
-
-def record_k_line_for_all_contracts(minute_time):
-    """記錄所有訂閱合約的 K 線資料"""
-    for code in subscribed_codes:
-        # 從 Contract API 取得最新資料
-        contract_data = get_contract_data(code)
-
-        if contract_data:
-            # 準備 K 線資料
-            k_data = {
-                "exchange": contract_data.get("exchange"),
-                "code": contract_data.get("code"),
-                "datetime": minute_time + ":00",
-                "open": contract_data.get("open"),
-                "underlying_price": contract_data.get("underlying_price"),
-                "bid_side_total_vol": contract_data.get("bid_side_total_vol"),
-                "ask_side_total_vol": contract_data.get("ask_side_total_vol"),
-                "avg_price": contract_data.get("avg_price"),
-                "close": contract_data.get("close"),
-                "high": contract_data.get("high"),
-                "low": contract_data.get("low"),
-                "amount": contract_data.get("amount"),
-                "total_amount": contract_data.get("total_amount"),
-                "volume": contract_data.get("volume"),
-                "total_volume": contract_data.get("total_volume"),
-                "tick_type": contract_data.get("tick_type"),
-                "chg_type": contract_data.get("chg_type"),
-                "price_chg": contract_data.get("price_chg"),
-                "pct_chg": contract_data.get("pct_chg"),
-                "simtrade": contract_data.get("simtrade"),
-            }
-
-            try:
-                response = requests.post(
-                    "http://127.0.0.1:8111/api/k-contracts/",
-                    json=k_data,
-                    timeout=5
-                )
-
-                if response.status_code in [200, 201]:
-                    print(f"[K線] {code} 記錄成功 | 時間: {minute_time}")
-                else:
-                    print(f"[K線] {code} 記錄失敗 | 錯誤: {response.text}")
-            except requests.exceptions.RequestException as e:
-                print(f"[K線] {code} 記錄失敗 | 例外: {e}")
+        print(f"[K線批次] 記錄失敗 | 例外: {e}")
 
 
 def k_line_scheduler():
-    """每分鐘的排程器 - 獨立執行緒"""
+    """每分鐘的排程器 - 獨立執行緒 (使用批次快照)"""
     global last_k_record_minute
 
     while True:
@@ -98,9 +70,9 @@ def k_line_scheduler():
             if now.second == 1 and current_minute != last_k_record_minute:
                 last_k_record_minute = current_minute
                 print(f"\n{'='*60}")
-                print(f"[K線排程] 開始記錄 {current_minute}")
+                print(f"[K線排程] 開始記錄 {current_minute} (批次模式)")
                 print(f"{'='*60}")
-                record_k_line_for_all_contracts(current_minute)
+                record_k_line_bulk_snapshot(current_minute)
                 print(f"{'='*60}\n")
 
             time.sleep(0.5)  # 每 0.5 秒檢查一次
@@ -141,7 +113,7 @@ def quote_callback(exchange: Exchange, tick: TickFOPv1):
     }
 
     # 顯示資料
-    print(f"Exchange: {exchange} | Code: {tick.code} | Price: {tick.close} | Volume: {tick.volume} | Time: {tick.datetime}")
+    print(f"Exchange: {exchange} | Code: {tick.code} | Price: {tick.close} | Volume: {tick.volume} | Total_Volume: {tick.total_volume} | Time: {tick.datetime}")
 
     # 發送到 API - 使用 PUT 更新方式
     try:
@@ -193,7 +165,7 @@ print("K 線排程器已啟動 (每分鐘記錄一次)")
 # Keep the program running to receive real-time data
 try:
     while True:
-        time.sleep(.5)  # Sleep in short intervals to allow Ctrl+C to work
+        time.sleep(.2)  # Sleep in short intervals to allow Ctrl+C to work
 except KeyboardInterrupt:
     print("\nStopping quote reception")
     api.logout()
