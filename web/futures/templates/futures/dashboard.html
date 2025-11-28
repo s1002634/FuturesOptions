@@ -332,7 +332,9 @@
         }
 
         function fetchContracts() {
-            fetch('/api/contracts/')
+            // 優化：只取最近更新的20筆資料（預設值）
+            // 可以調整 limit 參數來控制顯示數量
+            fetch('/api/contracts/?limit=20')
                 .then(response => response.json())
                 .then(data => {
                     renderContracts(data);
@@ -346,8 +348,8 @@
         // Initial fetch
         fetchContracts();
 
-        // Auto refresh every 1 second
-        setInterval(fetchContracts, 1000);
+        // Auto refresh every 2 seconds (降低更新頻率以減少負載)
+        setInterval(fetchContracts, 2000);
     </script>
 </body>
 </html>

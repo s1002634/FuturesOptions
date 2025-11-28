@@ -170,7 +170,10 @@
                     <option value="180">最近 3 小時</option>
                     <option value="360">最近 6 小時</option>
                     <option value="720">最近 12 小時</option>
-                    <option value="1440">最近 24 小時</option>
+                    <option value="1440">最近 1 天</option>
+                    <option value="4320">最近 3 天</option>
+                    <option value="10080">最近 7 天</option>
+                    <option value="43200">最近 30 天</option>
                 </select>
             </div>
 
@@ -293,14 +296,12 @@
             });
         }
 
-        // 載入合約列表
+        // 載入合約列表 - 優化：使用專用API只取合約代碼
         async function loadContracts() {
             try {
-                const response = await fetch('/api/k-contracts/');
-                const data = await response.json();
-
-                // 取得所有唯一的 code
-                const codes = [...new Set(data.map(item => item.code))];
+                // 使用新的 contract-codes API，只返回合約代碼列表（極速）
+                const response = await fetch('/api/k-contracts/contract-codes/?hours=1');
+                const codes = await response.json();
 
                 const select = document.getElementById('contractSelect');
                 select.innerHTML = codes.map(code =>
@@ -315,27 +316,38 @@
             }
         }
 
-        // 載入圖表資料
+        // 載入圖表資料 - 優化：使用hours參數直接從後端過濾 + 超高速模式
         async function loadChartData(code) {
             if (!code) return;
 
-            const timeRange = document.getElementById('timeRange').value;
+            const timeRangeMinutes = parseInt(document.getElementById('timeRange').value);
+            const hours = Math.ceil(timeRangeMinutes / 60); // 轉換為小時
+
+            // 自動計算limit：每分鐘1筆資料 + 20%緩衝
+            // 但限制在合理範圍內（最少100，最多10000）
+            const calculatedLimit = Math.min(Math.max(timeRangeMinutes, 100), 10000);
 
             try {
-                const response = await fetch(`/api/k-contracts/?code=${code}`);
+                // 使用 fast=true 啟用超高速模式（跳過序列化器，直接返回字典）
+                const response = await fetch(
+                    `/api/k-contracts/?code=${code}&hours=${hours}&limit=${calculatedLimit}&no_page=true&fast=true`
+                );
                 const data = await response.json();
 
-                // 只取最近的資料
-                const filteredData = data.slice(0, parseInt(timeRange)).reverse();
+                // 資料已經由後端按時間過濾和排序，這裡只需要反轉順序（從舊到新）
+                const chartData = data.reverse();
 
                 // 更新圖表
-                chart.data.labels = filteredData.map(item => new Date(item.datetime));
-                chart.data.datasets[0].data = filteredData.map(item => parseFloat(item.close));
+                chart.data.labels = chartData.map(item => new Date(item.datetime));
+                chart.data.datasets[0].data = chartData.map(item => parseFloat(item.close));
                 chart.data.datasets[0].label = `${code} - 收盤價`;
-                chart.update();
+                chart.update('none'); // 使用 'none' 模式加速更新
 
                 // 更新統計資訊
-                updateStats(filteredData);
+                updateStats(chartData);
+
+                // 更新資料筆數顯示
+                document.getElementById('dataCount').textContent = chartData.length;
 
                 // 更新最後更新時間
                 document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-TW');

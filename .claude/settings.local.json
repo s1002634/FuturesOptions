@@ -12,7 +12,17 @@
       "Bash(pip install:*)",
       "Bash(python manage.py makemigrations:*)",
       "Bash(python manage.py:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(curl:*)",
+      "Bash(del:*)",
+      "Bash(taskkill:*)",
+      "Bash(nul)",
+      "Bash(psql:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell:*)",
+      "Bash(set:*)",
+      "Bash(\"C:\\Program Files\\PostgreSQL\\18\\bin\\psql.exe\" -U postgres -h localhost -p 5432 -c \"CREATE DATABASE futures_db;\")",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

@@ -76,10 +76,36 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'futures_db',
+        'USER': 'postgres',
+        'PASSWORD': 'Vv04560456',
+        'HOST': 'localhost',
+        'PORT': '5432',
+        'OPTIONS': {
+            'connect_timeout': 10,
+        }
     }
 }
+
+# 備份：SQLite 設定（如需切換回 SQLite，取消下方註解並註解上方 PostgreSQL 設定）
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#         'OPTIONS': {
+#             'timeout': 20,
+#             # SQLite 效能優化設定
+#             'init_command': """
+#                 PRAGMA journal_mode=WAL;
+#                 PRAGMA synchronous=NORMAL;
+#                 PRAGMA cache_size=-64000;
+#                 PRAGMA temp_store=MEMORY;
+#                 PRAGMA mmap_size=268435456;
+#             """,
+#         }
+#     }
+# }
 
 
 # Password validation

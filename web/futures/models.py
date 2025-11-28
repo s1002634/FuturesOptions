@@ -3,7 +3,7 @@ from django.db import models
 
 class Contract(models.Model):
     exchange = models.CharField(max_length=20, help_text="交易所", default="TAIFEX")
-    code = models.CharField(max_length=50, help_text="商品代碼")
+    code = models.CharField(max_length=50, help_text="商品代碼", db_index=True)
     datetime = models.DateTimeField(help_text="日期")
     open = models.DecimalField(max_digits=20, decimal_places=4, help_text="開盤價")
     underlying_price = models.DecimalField(max_digits=20, decimal_places=4, help_text="標的物價格")
@@ -22,6 +22,7 @@ class Contract(models.Model):
     price_chg = models.DecimalField(max_digits=20, decimal_places=4, help_text="漲跌")
     pct_chg = models.DecimalField(max_digits=20, decimal_places=4, help_text="漲跌幅 (%)")
     simtrade = models.IntegerField(help_text="試撮")
+    is_active = models.BooleanField(default=True, help_text="是否為活躍契約（正在交易中）", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, help_text="建立時間")
     updated_at = models.DateTimeField(auto_now=True, help_text="更新時間")
 
@@ -30,6 +31,11 @@ class Contract(models.Model):
 
     class Meta:
         db_table = 'contract'
+        indexes = [
+            models.Index(fields=['code']),  # 按合約代碼查詢
+            models.Index(fields=['-updated_at']),  # 按更新時間排序
+            models.Index(fields=['code', '-updated_at']),  # 組合索引
+        ]
 
 
 class KContract(models.Model):
@@ -64,5 +70,7 @@ class KContract(models.Model):
         unique_together = [['code', 'datetime']]  # 同一合約同一時間只有一筆記錄
         ordering = ['-datetime']
         indexes = [
-            models.Index(fields=['code', '-datetime']),
+            models.Index(fields=['code', '-datetime']),  # 按合約和時間查詢（最重要）
+            models.Index(fields=['-datetime']),  # 按時間排序
+            models.Index(fields=['code']),  # 按合約查詢
         ]
